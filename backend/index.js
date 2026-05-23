@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
-import usersRouter from "../routes/users.js";
-import healthRouter from "../routes/health.js";
+import usersRouter from "./routes/users.js";
+import healthRouter from "./routes/health.js";
 
 const app = express();
 

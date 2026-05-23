@@ -1,6 +1,6 @@
 import express from "express";
 import { pool } from "../db/index.js";
-import { encodeCursor, decodeCursor, validateCursor } from "../src/utils/cursor.js";
+import { encodeCursor, decodeCursor, validateCursor } from "../utils/cursor.js";
 
 const router = express.Router();
 
