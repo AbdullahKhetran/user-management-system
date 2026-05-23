@@ -11,7 +11,7 @@ export default function Users() {
   const [order, setOrder] = useState("asc");
 
   const [email, setEmail] = useState("");
-  const [singleUser, setSingleUser] = useState(null);
+  const [filteredUser, setFilteredUser] = useState(null);
   const [mode, setMode] = useState("list");
 
   const [updatingIds, setUpdatingIds] = useState(new Set());
@@ -110,7 +110,7 @@ export default function Users() {
     try {
       const res = await api.get(`/users/by-email/${email}`);
 
-      setSingleUser(res.data);
+      setFilteredUser(res.data);
     } finally {
       setLoading(false);
     }
@@ -123,28 +123,34 @@ export default function Users() {
       const res = await api.patch(`/users/${id}/status`)
 
       const data = res.data
-
+      //  update list
       setUsers(prev =>
         prev.map(u =>
           u.id === id ? { ...u, is_active: data.user.is_active } : u
         )
       );
+
+      // update filteredUser
+      setFilteredUser(prev =>
+        prev && prev.id === id
+          ? { ...prev, is_active: data.user.is_active }
+          : prev
+      );
+
     } catch (err) {
       console.error(err);
     } finally {
-      setTimeout(() => {
-        setUpdatingIds(prev => {
+      setUpdatingIds(prev => {
           const next = new Set(prev);
           next.delete(id);
           return next;
         });
-      }, 500);
     }
   };
 
   const resetToList = () => {
     setMode("list");
-    setSingleUser(null);
+    setFilteredUser(null);
     setEmail("");
   };
 
@@ -226,14 +232,22 @@ export default function Users() {
         {/* SINGLE MODE */}
         {mode === "single" && (
           <div>
-            {singleUser ? (
-              <div style={headerStyle}>
-                <div>{singleUser.name}</div>
-                <div>{singleUser.email}</div>
-                <div>{singleUser.age}</div>
-                <div>{String(singleUser.is_active)}</div>
+            {filteredUser ? (
+              <div
+                style={{
+                  ...gridStyle,
+                  backgroundColor: updatingIds.has(filteredUser.id)
+                    ? "#fff3a0"
+                    : "transparent",
+                  transition: "background-color 0.3s"
+                }}
+              >
+                <div>{filteredUser.name}</div>
+                <div>{filteredUser.email}</div>
+                <div>{filteredUser.age}</div>
+                <div>{String(filteredUser.is_active)}</div>
                 <div>
-                  <button onClick={() => toggleStatus(singleUser.id)}>
+                  <button onClick={() => toggleStatus(filteredUser.id)}>
                     Toggle
                   </button>
                 </div>
