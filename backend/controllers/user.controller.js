@@ -1,19 +1,6 @@
 import { pool } from "../db/index.js";
 import { encodeCursor, decodeCursor, validateCursor } from "../utils/cursor.js";
 
-const filterByEamil = async (req,res) => {
-    const { email } = req.params;
-
-    try {
-        const result = await pool.query(
-            "SELECT * FROM users WHERE email = $1",
-            [email]
-        );
-        res.json(result.rows[0] || null);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-}
 
 // pagination + sort
 const users = async (req,res) => {
@@ -119,24 +106,37 @@ const users = async (req,res) => {
     }
 }
 
-const switchAcitveStatus = async (req,res) => {
-    const { id } = req.params;
-    const { is_active } = req.body;
-
-    if (typeof is_active !== "boolean") {
-        return res.status(400).json({
-            error: "is_active must be a boolean"
-        });
-    }
+// filter by email
+const filterByEamil = async (req,res) => {
+    const { email } = req.params;
 
     try {
         const result = await pool.query(
-            `UPDATE users
-            SET is_active = $1
-            WHERE id = $2
-            RETURNING *`,
-            [is_active, id]
+            "SELECT * FROM users WHERE email = $1",
+            [email]
         );
+        res.json(result.rows[0] || null);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+}
+
+// toggle active status
+const switchAcitveStatus = async (req,res) => {
+    const { id } = req.params;
+    // console.log("request received, id is", id)
+
+    try {
+        // console.log("sending query")
+        const result = await pool.query(
+            `UPDATE users
+             SET is_active = NOT is_active
+             WHERE id = $1
+             RETURNING *`,
+             [id]
+        );
+
+        // console.log("result is", result)
 
         if (result.rows.length === 0) {
             return res.status(404).json({

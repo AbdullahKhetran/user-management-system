@@ -12,7 +12,9 @@ export default function Users() {
 
   const [email, setEmail] = useState("");
   const [singleUser, setSingleUser] = useState(null);
-  const [mode, setMode] = useState("list"); // "list" | "single"
+  const [mode, setMode] = useState("list");
+
+  const [updatingIds, setUpdatingIds] = useState(new Set());
 
   useEffect(() => {
     const fetchInitial = async () => {
@@ -114,6 +116,32 @@ export default function Users() {
     }
   };
 
+  const toggleStatus = async (id) => {
+    setUpdatingIds(prev => new Set(prev).add(id));
+
+    try {
+      const res = await api.patch(`/users/${id}/status`)
+
+      const data = res.data
+
+      setUsers(prev =>
+        prev.map(u =>
+          u.id === id ? { ...u, is_active: data.user.is_active } : u
+        )
+      );
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setTimeout(() => {
+        setUpdatingIds(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }, 500);
+    }
+  };
+
   const resetToList = () => {
     setMode("list");
     setSingleUser(null);
@@ -122,13 +150,27 @@ export default function Users() {
 
   const isListReady = mode === "list" && users.length > 0;
 
+  // styling
+  const gridStyle = {
+    display: "grid",
+    gridTemplateColumns: "2fr 3fr 1fr 1fr 1fr",
+    gap: "10px",
+    padding: "10px 0",
+    alignItems: "center",
+    borderBottom: "1px solid #e5e5e5"
+  };
+
+  const headerStyle = {
+    ...gridStyle,
+    fontWeight: "bold",
+    borderBottom: "2px solid #999"
+  };
+
   return (
     <div>
       <h2>User List</h2>
 
-      <div style={{position: "relative", minHeight: "200px"}}>
-
-
+      <div style={{ position: "relative", minHeight: "200px" }}>
 
         {/* sort buttons */}
         <div style={{ marginBottom: "10px", display: "flex", gap: "10px" }}>
@@ -174,21 +216,27 @@ export default function Users() {
           )}
         </div>
 
-        {/* no user right now */}
+        {/* loading */}
         {loading && users.length === 0 && (
           <div style={{ padding: "20px" }}>
             Loading...
           </div>
         )}
-        
-        {/* for filter, show only that record */}
+
+        {/* SINGLE MODE */}
         {mode === "single" && (
           <div>
-            {loading && <div>Loading...</div>}
-
             {singleUser ? (
-              <div>
-                {singleUser.name} | {singleUser.email} | {singleUser.age} | {String(singleUser.is_active)}
+              <div style={headerStyle}>
+                <div>{singleUser.name}</div>
+                <div>{singleUser.email}</div>
+                <div>{singleUser.age}</div>
+                <div>{String(singleUser.is_active)}</div>
+                <div>
+                  <button onClick={() => toggleStatus(singleUser.id)}>
+                    Toggle
+                  </button>
+                </div>
               </div>
             ) : (
               !loading && <div>No user found</div>
@@ -196,21 +244,49 @@ export default function Users() {
           </div>
         )}
 
-        {/* list mode */}
+        {/* LIST MODE */}
         {mode === "list" && (
           <>
-            {/* displaying users */}
-            {users.length > 0 && (
-              <div style={{ opacity: loading ? 0.5 : 1 }}>
-                {users.map(user => (
-                  <div key={user.id}>
-                    {user.name} | {user.email} | {user.age} | {String(user.is_active)}
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* header */}
+            <div style={headerStyle}>
+              <div>Name</div>
+              <div>Email</div>
+              <div>Age</div>
+              <div>Active</div>
+              <div>Status</div>
+            </div>
 
-            {/* navigation buttons */}
+            {/* rows */}
+            <div style={{ opacity: loading ? 0.5 : 1 }}>
+              {users.map(user => (
+                <div
+                  key={user.id}
+                  style={{
+                    ...gridStyle,
+                    backgroundColor: updatingIds.has(user.id)
+                      ? "#fff3a0"
+                      : "transparent",
+                    transition: "background-color 0.3s"
+                  }}
+                >
+                  <div>{user.name}</div>
+                  <div>{user.email}</div>
+                  <div>{user.age}</div>
+                  <div>{String(user.is_active)}</div>
+
+                  <div>
+                    <button
+                      onClick={() => toggleStatus(user.id)}
+                      disabled={updatingIds.has(user.id)}
+                    >
+                      {user.is_active ? "Deactivate" : "Activate"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* pagination */}
             <div style={{ marginTop: "20px", display: "flex", gap: "10px" }}>
               <button
                 onClick={prevPage}
@@ -225,7 +301,7 @@ export default function Users() {
               >
                 Next
               </button>
-            </div>               
+            </div>
           </>
         )}
       </div>

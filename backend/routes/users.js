@@ -5,6 +5,6 @@ const router = express.Router();
 
 router.route("/").get(users)
 router.route("/by-email/:email").get(filterByEamil)
-router.route("/:id/active")
+router.route("/:id/status").patch(switchAcitveStatus)
 
 export default router;
