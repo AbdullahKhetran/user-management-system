@@ -60,7 +60,7 @@ router.get("/", async (req, res) => {
     if (sortBy === "id") {
       query += ` ORDER BY id ${order}`;
     } else {
-      query += ` ORDER BY age ${order}, id ASC`;
+      query += ` ORDER BY age ${order}, id ${order}`;
     }
 
     query += ` LIMIT $${values.length + 1}`
