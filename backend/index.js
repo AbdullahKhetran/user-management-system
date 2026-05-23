@@ -8,7 +8,10 @@ const app = express();
 app.use(express.json());
 app.use(
   cors({
-    origin: ["http://localhost:5173", "https://metavystic-task-frontend.vercel.app/"]
+    origin: [
+      "http://localhost:5173", 
+      "http://localhost:4173", 
+      "https://metavystic-task-frontend.vercel.app/"]
   })
 )
 
