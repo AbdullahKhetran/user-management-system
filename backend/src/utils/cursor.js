@@ -9,3 +9,34 @@ export function decodeCursor(cursor) {
     return null;
   }
 }
+
+// cursor modes
+// mode a (id) {"id": 23}
+// mode b (age) {"age": 25, "id": 123}
+
+export function validateCursor(cursor, sortBy) {
+  if (!cursor || typeof cursor !== "object") {
+    return null;
+  }
+
+  if (sortBy === "id") {
+    if (typeof cursor.id !== "number") return null;
+
+    return {
+      id: cursor.id
+    };
+  }
+
+  // age mode
+  if (
+    typeof cursor.value !== "number" ||
+    typeof cursor.id !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    value: cursor.value,
+    id: cursor.id
+  };
+}
