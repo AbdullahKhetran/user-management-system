@@ -18,8 +18,13 @@ const filterByEamil = async (req,res) => {
 // pagination + sort
 const users = async (req,res) => {
     const allowedSort = ["id", "age"];
+    const allowedLimit = 50 // check at backend
 
-    let limit = parseInt(req.query.limit) || 50;
+    const raw = parseInt(req.query.limit, 10);
+    const requestedLimit = Number.isNaN(raw) ? 10 : raw;
+    const limit = Math.min(Math.max(requestedLimit, 1), allowedLimit);
+    
+    // +1 trick
     const realLimit = limit + 1;
 
     let sortBy = req.query.sortBy || "id";
@@ -29,89 +34,88 @@ const users = async (req,res) => {
     sortBy = "id";
     }
 
-
     let rawCursor = null;
 
     try {
-    rawCursor = decodeCursor(req.query.cursor);
+        rawCursor = decodeCursor(req.query.cursor);
     } catch (e) {
-    rawCursor = null;
+        rawCursor = null;
     }
 
     const cursor = validateCursor(rawCursor, sortBy);
 
     try {
-    let query = `
-        SELECT *
-        FROM users
-    `;
+        let query = `
+            SELECT *
+            FROM users
+        `;
 
-    const values = [];
-    let whereClause = "";
+        const values = [];
+        let whereClause = "";
 
-    if (cursor) {
+        if (cursor) {
+            if (sortBy === "id") {
+            values.push(cursor.id);
+
+            whereClause = `WHERE id > $1`;
+            } else {
+            values.push(cursor.value, cursor.id);
+
+            if (order === "ASC") {
+                whereClause = `WHERE (age, id) > ($1, $2)`;
+            } else {
+                whereClause = `WHERE (age, id) < ($1, $2)`;
+            }
+            }
+        }
+
+        query += whereClause;
+
         if (sortBy === "id") {
-        values.push(cursor.id);
-
-        whereClause = `WHERE id > $1`;
+            query += ` ORDER BY id ${order}`;
         } else {
-        values.push(cursor.value, cursor.id);
-
-        if (order === "ASC") {
-            whereClause = `WHERE (age, id) > ($1, $2)`;
-        } else {
-            whereClause = `WHERE (age, id) < ($1, $2)`;
+            query += ` ORDER BY age ${order}, id ${order}`;
         }
+
+        query += ` LIMIT $${values.length + 1}`
+
+        values.push(realLimit);
+
+        const result = await pool.query(query, values);
+
+        const hasMore = result.rows.length > limit;
+
+        const rows = hasMore
+            ? result.rows.slice(0, limit)
+            : result.rows;
+
+        // edge case: were at end, so next chunk is empty
+        if (rows.length === 0) {
+            return res.json({
+            data: [],
+            nextCursor: null,
+            hasMore: false
+            });
         }
-    }
 
-    query += whereClause;
+        const last = rows[rows.length - 1];
 
-    if (sortBy === "id") {
-        query += ` ORDER BY id ${order}`;
-    } else {
-        query += ` ORDER BY age ${order}, id ${order}`;
-    }
+        const nextCursor =
+            hasMore
+            ? encodeCursor(
+                sortBy === "id"
+                    ? { id: last.id }
+                    : { value: last.age, id: last.id }
+                )
+            : null;
 
-    query += ` LIMIT $${values.length + 1}`
-
-    values.push(realLimit);
-
-    const result = await pool.query(query, values);
-
-    const hasMore = result.rows.length > limit;
-
-    const rows = hasMore
-        ? result.rows.slice(0, limit)
-        : result.rows;
-
-    // edge case: were at end, so next chunk is empty
-    if (rows.length === 0) {
-        return res.json({
-        data: [],
-        nextCursor: null,
-        hasMore: false
+        res.json({
+            data: rows,
+            nextCursor,
+            hasMore
         });
-    }
-
-    const last = rows[rows.length - 1];
-
-    const nextCursor =
-        hasMore
-        ? encodeCursor(
-            sortBy === "id"
-                ? { id: last.id }
-                : { value: last.age, id: last.id }
-            )
-        : null;
-
-    res.json({
-        data: rows,
-        nextCursor,
-        hasMore
-    });
     } catch (err) {
-    res.status(500).json({ error: err.message });
+        res.status(500).json({ error: err.message });
     }
 }
 
